@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import font, colorchooser, filedialog, messagebox
 import os
+from agent_assist import summarize_text, extract_action_items, improve_clarity, to_bullet_points
 
 main_application = tk.Tk()
 main_application.geometry('1200x800')
@@ -67,6 +68,9 @@ main_menu.add_cascade(label='File', menu=file)
 main_menu.add_cascade(label='Edit', menu=edit)
 main_menu.add_cascade(label='View', menu=view)
 main_menu.add_cascade(label='Color Theme', menu=color_theme)
+
+agent_menu = tk.Menu(main_menu, tearoff=False)
+main_menu.add_cascade(label='Agent', menu=agent_menu)
 
 # --------------------------------------------&&&&&&&&&&&&& End main menu &&&&&&&&&&&&&------------------------------------------
 
@@ -427,6 +431,66 @@ edit.add_command(label='Cut', image=cut_icon, compound=tk.LEFT, accelerator='Ctr
 edit.add_command(label='Clear All', image=clear_all_icon, compound=tk.LEFT, accelerator='Ctrl+Alt+X', command=lambda:text_editor.delete(1.0,tk.END))
 edit.add_command(label='Find', image=find_icon, compound=tk.LEFT, accelerator='Ctrl+F', command=find_func)
 
+
+def agent_assist_dialog(event=None):
+    selected_text = text_editor.get(tk.SEL_FIRST, tk.SEL_LAST) if text_editor.tag_ranges(tk.SEL) else text_editor.get(1.0, 'end-1c')
+
+    window = tk.Toplevel(main_application)
+    window.title('Agent Assist')
+    window.geometry('840x520+350+150')
+
+    left_panel = ttk.LabelFrame(window, text='Input')
+    left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+    right_panel = ttk.LabelFrame(window, text='Result')
+    right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+    input_box = tk.Text(left_panel, wrap='word')
+    input_box.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
+    input_box.insert('1.0', selected_text)
+
+    result_box = tk.Text(right_panel, wrap='word')
+    result_box.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
+
+    controls = ttk.Frame(window)
+    controls.pack(fill=tk.X, padx=10, pady=(0, 10))
+
+    def run_action(action):
+        source = input_box.get('1.0', 'end-1c')
+        if action == 'summarize':
+            result = summarize_text(source)
+        elif action == 'actions':
+            result = extract_action_items(source)
+        elif action == 'clarity':
+            result = improve_clarity(source)
+        elif action == 'bullets':
+            result = to_bullet_points(source)
+        else:
+            result = source
+
+        result_box.delete('1.0', tk.END)
+        result_box.insert('1.0', result)
+
+    def apply_to_editor():
+        result = result_box.get('1.0', 'end-1c')
+        if not result.strip():
+            return
+        if text_editor.tag_ranges(tk.SEL):
+            text_editor.delete(tk.SEL_FIRST, tk.SEL_LAST)
+            text_editor.insert(tk.INSERT, result)
+        else:
+            text_editor.insert(tk.END, f'\n\n{result}')
+        window.destroy()
+
+    ttk.Button(controls, text='Summarize', command=lambda: run_action('summarize')).pack(side=tk.LEFT, padx=4)
+    ttk.Button(controls, text='Extract Action Items', command=lambda: run_action('actions')).pack(side=tk.LEFT, padx=4)
+    ttk.Button(controls, text='Improve Clarity', command=lambda: run_action('clarity')).pack(side=tk.LEFT, padx=4)
+    ttk.Button(controls, text='To Bullet Points', command=lambda: run_action('bullets')).pack(side=tk.LEFT, padx=4)
+    ttk.Button(controls, text='Apply to Editor', command=apply_to_editor).pack(side=tk.RIGHT, padx=4)
+
+
+agent_menu.add_command(label='Open Agent Assist', accelerator='Ctrl+Shift+A', command=agent_assist_dialog)
+
 ##view check button
 
 show_statusbar = tk.BooleanVar()
@@ -485,5 +549,6 @@ main_application.bind("<Control-s>", save_file)
 main_application.bind("<Control-Alt-s>", save_as)
 main_application.bind("<Control-q>", exit_func)
 main_application.bind("<Control-f>", find_func)
+main_application.bind("<Control-Shift-A>", agent_assist_dialog)
 
 main_application.mainloop()
